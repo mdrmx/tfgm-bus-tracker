@@ -1,12 +1,33 @@
-import { getBusData } from "./api";
-import { initMap, updateMarkers } from "./components/map.js";
+import { getBusData, getBusStops } from "./api";
+import { initMap, updateMarkers, busStopMarkers } from "./components/map.js";
+import { buildUI } from "./components/ui.js";
 import "./style.css";
+
+let line = 42;
 
 const initApp = async () => {
   const appContainer = document.getElementById("app");
   const { userLat, userLon } = await getUserLocation();
-  const buses = await getBusData(userLat, userLon, "");
+  const buses = await getBusData(userLat, userLon, line);
   console.log("Bus data received in main.js:", buses);
+
+  const { container, input, button, routeNumber } = buildUI();
+  routeNumber.textContent = `Route ${line}`;
+
+  const search = async () => {
+    line = input.value.trim();
+    routeNumber.textContent = `Route ${line}`;
+
+    const updatedBuses = await getBusData(userLat, userLon, line);
+    console.log("Updated bus data received:", updatedBuses);
+    updateMarkers(updatedBuses);
+  };
+
+  button.addEventListener("click", search);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") search();
+  });
+  document.body.appendChild(container);
 
   const map = document.createElement("div");
   map.id = "map";
@@ -14,6 +35,16 @@ const initApp = async () => {
 
   await initMap({ lat: userLat, lon: userLon });
   updateMarkers(buses);
+  getBusStops().then((stops) => {
+    console.log("Bus stops data in main.js:", stops);
+    busStopMarkers(stops, userLat, userLon);
+  });
+  setInterval(async () => {
+    line = input.value.trim() || line;
+    const updatedBuses = await getBusData(userLat, userLon, line);
+    console.log("Updated bus data received:", updatedBuses);
+    updateMarkers(updatedBuses);
+  }, 10000); // Refresh every 10 seconds
 };
 
 initApp();
